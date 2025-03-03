@@ -1,0 +1,36 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: bootc-image-builder
+spec:
+  params:
+    - default: quay.io/kubealex/rhel-bootc-demo
+      name: SOURCE_IMAGE_NAME
+      type: string
+    - default: latest
+      name: SOURCE_IMAGE_TAG
+      type: string
+  tasks:
+    - name: bootc-image-builder
+      params:
+        - name: SOURCE_IMAGE
+          value: $(params.SOURCE_IMAGE_NAME)
+        - name: SOURCE_IMAGE_TAG
+          value: $(params.SOURCE_IMAGE_TAG)
+        - name: BUILDER_IMAGE
+          value: 'registry.redhat.io/rhel9/bootc-image-builder:latest'
+        - name: DEST_FORMAT
+          value: qcow2
+        - name: TLS_VERIFY
+          value: 'true'
+      taskRef:
+        kind: Task
+        name: bootc-image-builder
+      workspaces:
+        - name: source
+          workspace: main
+        - name: dockerconfig
+          workspace: registry-creds
+  workspaces:
+    - name: main
+    - name: registry-creds

@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: rhel-bootc-image-build
+spec:
+  params:
+    - description: Name of the image to build (i.e. quay.io/kubealex/rhel-image-mode)
+      name: IMAGE_NAME
+      type: string
+    - default: latest
+      description: 'Tags, separated by a space, to apply to the image'
+      name: IMAGE_TAGS
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: 'https://github.com/kubealex/rh1-image-mode-soe'
+        - name: revision
+          value: ''
+        - name: refspec
+          value: ''
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: crtFileName
+          value: ca-bundle.crt
+        - name: subdirectory
+          value: ''
+        - name: sparseCheckoutDirectories
+          value: ''
+        - name: deleteExisting
+          value: 'true'
+        - name: httpProxy
+          value: ''
+        - name: httpsProxy
+          value: ''
+        - name: noProxy
+          value: ''
+        - name: verbose
+          value: 'true'
+        - name: gitInitImage
+          value: 'gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2'
+        - name: userHome
+          value: /home/git
+      taskRef:
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: openshift-pipelines
+      workspaces:
+        - name: output
+          workspace: repo-folder
+    - name: rhel-image-mode-build
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_NAME)
+        - name: IMAGE_TAGS
+          value: $(params.IMAGE_TAGS)
+        - name: BUILDER_IMAGE
+          value: 'registry.redhat.io/rhel9/podman:latest'
+        - name: STORAGE_DRIVER
+          value: vfs
+        - name: DOCKERFILE
+          value: ./Containerfile
+        - name: CONTEXT
+          value: .
+        - name: TLSVERIFY
+          value: 'true'
+        - name: FORMAT
+          value: oci
+        - name: BUILD_EXTRA_ARGS
+          value: ''
+        - name: PUSH_EXTRA_ARGS
+          value: ''
+        - name: SKIP_PUSH
+          value: 'false'
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: Task
+        name: rhel-image-mode-build
+      workspaces:
+        - name: source
+          workspace: repo-folder
+        - name: dockerconfig
+          workspace: podman-auth
+        - name: rhel-entitlement
+          workspace: rhel-entitlements
+  workspaces:
+    - name: repo-folder
+    - name: podman-auth
+    - name: rhel-entitlements

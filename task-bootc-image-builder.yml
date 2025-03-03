@@ -1,0 +1,99 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: bootc-image-builder
+spec:
+  description: |-
+    Buildah task builds source into a container image and then pushes it to a container registry.
+    Buildah Task builds source into a container image using Project Atomic's Buildah build tool.It uses Buildah's support for building from Dockerfiles, using its buildah bud command.This command executes the directives in the Dockerfile to assemble a container image, then pushes that image to a container registry.
+  params:
+    - description: Reference of the source RHEL bootc image
+      name: SOURCE_IMAGE
+      type: string
+      default: $(params.SOURCE_IMAGE_NAME)
+    - description: Reference of the image tags buildah will produce.
+      name: SOURCE_IMAGE_TAG
+      type: string
+      default: $(params.SOURCE_IMAGE_TAG)
+    - default: 'registry.redhat.io/rhel9/bootc-image-builder:latest'
+      description: The location of the buildah builder image.
+      name: BUILDER_IMAGE
+      type: string
+    - default: 'qcow2'
+      description: Output format for the image
+      name: DEST_FORMAT
+      type: string
+    - default: 'true'
+      description: TLS Verification
+      name: TLS_VERIFY
+      type: string
+  # results:
+  #   - description: Digest of the image just built.
+  #     name: IMAGE_DIGEST
+  #     type: string
+  #   - description: Image repository where the built image would be pushed to
+  #     name: IMAGE_URL
+  #     type: string
+  steps:
+    - image: registry.redhat.io/rhel9/podman
+      name: bootc-image-builder
+      script: |
+        #!/usr/bin/env bash
+        set -xe
+
+        if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
+
+          # if config.json exists at workspace root, we use that
+          if test -f "$(workspaces.dockerconfig.path)/config.json"; then
+            export DOCKER_CONFIG="$(workspaces.dockerconfig.path)"
+
+          # else we look for .dockerconfigjson at the root
+          elif test -f "$(workspaces.dockerconfig.path)/.dockerconfigjson"; then
+            mkdir -p $HOME/.docker/
+            cp "$(workspaces.dockerconfig.path)/.dockerconfigjson" "$HOME/.docker/config.json"
+            export DOCKER_CONFIG="$HOME/.docker"
+
+          # need to error out if neither files are present
+          else
+            echo "neither 'config.json' nor '.dockerconfigjson' found at workspace root"
+            exit 1
+          fi
+        fi
+        
+        mkdir -p output
+
+        podman run \
+        --device /dev/fuse:rw \
+        --rm \
+        -it \
+        --privileged \
+        --pull=newer \
+        --security-opt label=type:unconfined_t \
+        -v $(pwd)/output:/output \
+        -v /root/.docker/config.json:/run/containers/0/auth.json \
+        -v /var/lib/containers/storage:/var/lib/containers/storage \
+        registry.redhat.io/rhel9/bootc-image-builder:latest \
+        --type $(params.DEST_FORMAT) --tls-verify=false $(params.SOURCE_IMAGE):$(params.SOURCE_IMAGE_TAG)
+
+      securityContext:
+        privileged: true
+        capabilities:
+          add:
+            - SETFCAP
+      volumeMounts:
+        - mountPath: /var/lib/containers
+          name: varlibcontainers
+        - mountPath: /dev/fuse
+          name: fuse
+      workingDir: $(workspaces.source.path)
+  volumes:
+    - emptyDir: {}
+      name: varlibcontainers
+    - name: fuse
+      hostPath: 
+        path: /dev/fuse
+  workspaces:
+    - name: source
+    - description: An optional workspace that allows providing a .docker/config.json file for Buildah to access the container registry. The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
+      name: dockerconfig
+      optional: false
