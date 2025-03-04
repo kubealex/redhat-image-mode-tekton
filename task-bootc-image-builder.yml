@@ -23,9 +23,29 @@ spec:
       description: Output format for the image
       name: DEST_FORMAT
       type: string
+    - default: |
+        [[customizations.user]]
+        name = "sysadmin"
+        password = "redhat"
+        groups = ["wheel"]
+      description: config.toml content for customizations
+      name: CONFIG_TOML_CONTENT
+      type: string
     - default: 'true'
       description: TLS Verification
       name: TLS_VERIFY
+      type: string
+    - default: ''
+      description: AWS AMI Name
+      name: AWS_AMI_NAME
+      type: string
+    - default: ''
+      description: AWS S3 Bucket
+      name: AWS_S3_BUCKET
+      type: string
+    - default: ''
+      description: AWS S3 Region
+      name: AWS_S3_REGION
       type: string
   # results:
   #   - description: Digest of the image just built.
@@ -40,6 +60,8 @@ spec:
       script: |
         #!/usr/bin/env bash
         set -xe
+
+        BUILD_COMMAND="--type $(params.DEST_FORMAT) --tls-verify=$(params.TLS_VERIFY) $(params.SOURCE_IMAGE):$(params.SOURCE_IMAGE_TAG)"
 
         if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
 
@@ -59,7 +81,25 @@ spec:
             exit 1
           fi
         fi
-        
+
+        if [[ "$(params.DEST_FORMAT)" == "ami" ]]; then
+          if [[ "$(workspaces.awscredentials.bound)" == "true" ]]; then
+            if test -f "$(workspaces.awscredentials.path)/credentials"; then
+              mkdir -p $HOME/.aws/
+              cp "$(workspaces.awscredentials.path)/credentials" "$HOME/.aws/credentials"
+              BUILD_COMMAND="--aws-ami-name $(params.AWS_AMI_NAME) --aws-bucket $(params.AWS_S3_BUCKET) --aws-region $(params.AWS_S3_REGION) $BUILD_COMMAND"
+            else
+              echo "AWS Credentials must be populated"
+              exit 1
+            fi
+          fi
+        fi
+
+        if [[ ! -z $CONFIG_TOML_CONTENT ]]; then
+          echo $CONFIG_TOML_CONTENT > config.toml
+          BUILD_COMMAND="--config /config.toml $BUILD_COMMAND"
+        fi
+
         mkdir -p output
 
         podman run \
@@ -73,7 +113,7 @@ spec:
         -v /root/.docker/config.json:/run/containers/0/auth.json \
         -v /var/lib/containers/storage:/var/lib/containers/storage \
         registry.redhat.io/rhel9/bootc-image-builder:latest \
-        --type $(params.DEST_FORMAT) --tls-verify=false $(params.SOURCE_IMAGE):$(params.SOURCE_IMAGE_TAG)
+        $BUILD_COMMAND
 
       securityContext:
         privileged: true
@@ -90,10 +130,13 @@ spec:
     - emptyDir: {}
       name: varlibcontainers
     - name: fuse
-      hostPath: 
+      hostPath:
         path: /dev/fuse
   workspaces:
     - name: source
     - description: An optional workspace that allows providing a .docker/config.json file for Buildah to access the container registry. The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
       name: dockerconfig
       optional: false
+    - description: AWS Credentials file to use for AMI Uploading
+      name: awscredentials
+      optional: true

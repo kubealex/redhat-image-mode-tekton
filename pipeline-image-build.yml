@@ -4,49 +4,62 @@ metadata:
   name: rhel-bootc-image-build
 spec:
   params:
-    - description: Name of the image to build (i.e. quay.io/kubealex/rhel-image-mode)
+    - description: URL of the repository where Containerfile is stored
+      name: GIT_REPOSITORY
+      type: string
+    - default: main
+      description: URL of the repository where Containerfile is stored
+      name: GIT_REPOSITORY_BRANCH
+      type: string    
+    - default: ./Containerfile
+      description: 'Containerfile path, relative'
+      name: CONTAINERFILE_PATH
+      type: string
+    - default: .
+      description: 'Podman Build Context'
+      name: BUILD_CONTEXT
+      type: string             
+    - description: 'Name of the image to create, i.e. quay.io/kubealex/rhel-bootc-demo'
       name: IMAGE_NAME
       type: string
-    - default: latest
-      description: 'Tags, separated by a space, to apply to the image'
+    - description: 'Tags, separated by a space, to apply to the image'
       name: IMAGE_TAGS
-      type: string
+      type: string      
   tasks:
     - name: git-clone
       params:
-        - name: url
-          value: 'https://github.com/kubealex/rh1-image-mode-soe'
-        - name: revision
-          value: ''
-        - name: refspec
-          value: ''
-        - name: submodules
-          value: 'true'
-        - name: depth
-          value: '1'
-        - name: sslVerify
-          value: 'true'
-        - name: crtFileName
+        - name: CRT_FILENAME
           value: ca-bundle.crt
-        - name: subdirectory
+        - name: HTTP_PROXY
           value: ''
-        - name: sparseCheckoutDirectories
+        - name: HTTPS_PROXY
           value: ''
-        - name: deleteExisting
-          value: 'true'
-        - name: httpProxy
+        - name: NO_PROXY
           value: ''
-        - name: httpsProxy
+        - name: SUBDIRECTORY
           value: ''
-        - name: noProxy
-          value: ''
-        - name: verbose
-          value: 'true'
-        - name: gitInitImage
-          value: 'gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2'
-        - name: userHome
+        - name: USER_HOME
           value: /home/git
+        - name: DELETE_EXISTING
+          value: 'true'
+        - name: VERBOSE
+          value: 'false'
+        - name: SSL_VERIFY
+          value: 'true'
+        - name: URL
+          value: $(params.GIT_REPOSITORY)
+        - name: REVISION
+          value: $(params.GIT_REPOSITORY_BRANCH)
+        - name: REFSPEC
+          value: ''
+        - name: SUBMODULES
+          value: 'true'
+        - name: DEPTH
+          value: '1'
+        - name: SPARSE_CHECKOUT_DIRECTORIES
+          value: ''
       taskRef:
+        resolver: cluster
         params:
           - name: kind
             value: task
@@ -65,12 +78,10 @@ spec:
           value: $(params.IMAGE_TAGS)
         - name: BUILDER_IMAGE
           value: 'registry.redhat.io/rhel9/podman:latest'
-        - name: STORAGE_DRIVER
-          value: vfs
         - name: DOCKERFILE
-          value: ./Containerfile
+          value: $(params.CONTAINERFILE_PATH)
         - name: CONTEXT
-          value: .
+          value: $(params.BUILD_CONTEXT)
         - name: TLSVERIFY
           value: 'true'
         - name: FORMAT

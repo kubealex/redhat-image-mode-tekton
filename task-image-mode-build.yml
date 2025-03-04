@@ -4,8 +4,8 @@ metadata:
   name: rhel-image-mode-build
 spec:
   description: |-
-    Buildah task builds source into a container image and then pushes it to a container registry.
-    Buildah Task builds source into a container image using Project Atomic's Buildah build tool.It uses Buildah's support for building from Dockerfiles, using its buildah bud command.This command executes the directives in the Dockerfile to assemble a container image, then pushes that image to a container registry.
+    Podman task builds source into a container image and then pushes it to a container registry.
+    Podman Task builds source into a container image using Project Atomic's Podman build tool.It uses Podman's support for building from Dockerfiles, using its buildah bud command.This command executes the directives in the Dockerfile to assemble a container image, then pushes that image to a container registry.
   params:
     - description: Reference of the image buildah will produce.
       name: IMAGE
@@ -125,10 +125,10 @@ spec:
         path: /dev/fuse      
   workspaces:
     - name: source
-    - description: An optional workspace that allows providing a .docker/config.json file for Buildah to access the container registry. The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
+    - description: An optional workspace that allows providing a .docker/config.json file for Podman to access the container registry. The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.
       name: dockerconfig
       optional: true
-    - description: An optional workspace that allows providing the entitlement keys for Buildah to access subscription. The mounted workspace contains entitlement.pem and entitlement-key.pem.
+    - description: An optional workspace that allows providing the entitlement keys for Podman to access subscription. The mounted workspace contains entitlement.pem and entitlement-key.pem.
       mountPath: /tmp/entitlement
       name: rhel-entitlement
       optional: true

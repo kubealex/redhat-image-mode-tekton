@@ -7,9 +7,40 @@ spec:
     - default: quay.io/kubealex/rhel-bootc-demo
       name: SOURCE_IMAGE_NAME
       type: string
+      description: 'Image to convert - i.e. quay.io/kubealex/rhel-bootc-demo'
     - default: latest
       name: SOURCE_IMAGE_TAG
       type: string
+      description: 'Image tag'
+    - default: qcow2
+      name: DESTINATION_IMAGE_FORMAT
+      type: string
+      description: 'Resulting image format - allowed: qcow2, anaconda-iso, vmdk, raw, ami, gcp'
+    - default: |
+        [[customizations.user]]
+        name = "sysadmin"
+        password = "redhat"
+        groups = ["wheel"]
+      description: config.toml content for customizations
+      name: CONFIG_TOML_CONTENT
+      type: string
+    - default: 'true'
+      description: TLS Verification
+      name: TLS_VERIFY
+      type: string
+    - default: ''
+      description: AWS AMI Name
+      name: AWS_AMI_NAME
+      type: string
+    - default: ''
+      description: AWS S3 Bucket
+      name: AWS_S3_BUCKET
+      type: string
+    - default: ''
+      description: AWS S3 Region
+      name: AWS_S3_REGION
+      type: string
+
   tasks:
     - name: bootc-image-builder
       params:
@@ -20,9 +51,18 @@ spec:
         - name: BUILDER_IMAGE
           value: 'registry.redhat.io/rhel9/bootc-image-builder:latest'
         - name: DEST_FORMAT
-          value: qcow2
+          value: $(params.DESTINATION_IMAGE_FORMAT)
+        - name: CONFIG_TOML_CONTENT
+          value: $(params.CONFIG_TOML_CONTENT)
         - name: TLS_VERIFY
           value: 'true'
+        - name: AWS_AMI_NAME
+          value: $(params.AWS_AMI_NAME)
+        - name: AWS_S3_BUCKET
+          value: $(params.AWS_S3_BUCKET)
+        - name: AWS_S3_REGION
+          value: $(params.AWS_S3_REGION)
+
       taskRef:
         kind: Task
         name: bootc-image-builder
@@ -31,6 +71,10 @@ spec:
           workspace: main
         - name: dockerconfig
           workspace: registry-creds
+        - name: awscredentials
+          workspace: aws-creds
   workspaces:
     - name: main
     - name: registry-creds
+    - name: aws-creds
+      optional: true
