@@ -1,0 +1,104 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: rhel-bootc-image-build
+spec:
+  params:
+    - description: URL of the repository where Containerfile is stored
+      name: GIT_REPOSITORY
+      type: string
+    - default: main
+      description: URL of the repository where Containerfile is stored
+      name: GIT_REPOSITORY_BRANCH
+      type: string
+    - default: ./Containerfile
+      description: 'Containerfile path, relative'
+      name: CONTAINERFILE_PATH
+      type: string
+    - default: .
+      description: 'Podman Build Context'
+      name: BUILD_CONTEXT
+      type: string
+    - description: 'Name of the image to create, i.e. quay.io/kubealex/rhel-bootc-demo'
+      name: IMAGE_NAME
+      type: string
+    - description: 'Tags, separated by a space, to apply to the image'
+      name: IMAGE_TAGS
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: CRT_FILENAME
+          value: ca-bundle.crt
+        - name: HTTP_PROXY
+          value: ''
+        - name: HTTPS_PROXY
+          value: ''
+        - name: NO_PROXY
+          value: ''
+        - name: SUBDIRECTORY
+          value: ''
+        - name: USER_HOME
+          value: /home/git
+        - name: DELETE_EXISTING
+          value: 'true'
+        - name: VERBOSE
+          value: 'false'
+        - name: SSL_VERIFY
+          value: 'true'
+        - name: URL
+          value: $(params.GIT_REPOSITORY)
+        - name: REVISION
+          value: $(params.GIT_REPOSITORY_BRANCH)
+        - name: REFSPEC
+          value: ''
+        - name: SUBMODULES
+          value: 'true'
+        - name: DEPTH
+          value: '1'
+        - name: SPARSE_CHECKOUT_DIRECTORIES
+          value: ''
+      taskRef:
+        kind: Task
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: repo-folder
+    - name: rhel-image-mode-build
+      params:
+        - name: IMAGE
+          value: $(params.IMAGE_NAME)
+        - name: IMAGE_TAGS
+          value: $(params.IMAGE_TAGS)
+        - name: BUILDER_IMAGE
+          value: 'registry.redhat.io/rhel9/podman:latest'
+        - name: DOCKERFILE
+          value: $(params.CONTAINERFILE_PATH)
+        - name: CONTEXT
+          value: $(params.BUILD_CONTEXT)
+        - name: TLSVERIFY
+          value: 'true'
+        - name: FORMAT
+          value: oci
+        - name: BUILD_EXTRA_ARGS
+          value: ''
+        - name: PUSH_EXTRA_ARGS
+          value: ''
+        - name: SKIP_PUSH
+          value: 'false'
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: Task
+        name: rhel-image-mode-build
+      workspaces:
+        - name: source
+          workspace: repo-folder
+        - name: dockerconfig
+          workspace: podman-auth
+        - name: rhel-entitlement
+          workspace: rhel-entitlements
+  workspaces:
+    - name: repo-folder
+    - name: podman-auth
+    - name: rhel-entitlements
