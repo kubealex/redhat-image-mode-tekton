@@ -63,6 +63,17 @@ spec:
 
         BUILD_COMMAND="--type $(params.DEST_FORMAT) --tls-verify=$(params.TLS_VERIFY) $(params.SOURCE_IMAGE):$(params.SOURCE_IMAGE_TAG)"
 
+        PODMAN_COMMAND="podman run \
+        --device /dev/fuse:rw \
+        --rm \
+        -it \
+        --privileged \
+        --pull=newer \
+        --security-opt label=type:unconfined_t \
+        -v $(pwd)/output:/output \
+        -v /root/.docker/config.json:/run/containers/0/auth.json \
+        -v /var/lib/containers/storage:/var/lib/containers/storage"
+
         if [[ "$(workspaces.dockerconfig.bound)" == "true" ]]; then
 
           # if config.json exists at workspace root, we use that
@@ -95,24 +106,18 @@ spec:
           fi
         fi
 
-        if [[ ! -z $CONFIG_TOML_CONTENT ]]; then
-          echo $CONFIG_TOML_CONTENT > config.toml
+        if [[ ! -z "$(params.CONFIG_TOML_CONTENT)" ]]; then
+          echo "$(params.CONFIG_TOML_CONTENT)" > config.toml
           BUILD_COMMAND="--config /config.toml $BUILD_COMMAND"
+          PODMAN_COMMAND="$PODMAN_COMMAND -v ./config.toml:/config.toml:ro"
         fi
 
         mkdir -p output
 
-        podman run \
-        --device /dev/fuse:rw \
-        --rm \
-        -it \
-        --privileged \
-        --pull=newer \
-        --security-opt label=type:unconfined_t \
-        -v $(pwd)/output:/output \
-        -v /root/.docker/config.json:/run/containers/0/auth.json \
-        -v /var/lib/containers/storage:/var/lib/containers/storage \
-        registry.redhat.io/rhel9/bootc-image-builder:latest \
+        podman pull $(params.SOURCE_IMAGE):$(params.SOURCE_IMAGE_TAG)
+
+        $PODMAN_COMMAND \
+        $(params.BUILDER_IMAGE) \
         $BUILD_COMMAND
 
       securityContext:

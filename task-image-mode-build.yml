@@ -115,14 +115,14 @@ spec:
         - mountPath: /var/lib/containers
           name: varlibcontainers
         - mountPath: /dev/fuse
-          name: fuse          
+          name: fuse
       workingDir: $(workspaces.source.path)
   volumes:
     - emptyDir: {}
       name: varlibcontainers
     - name: fuse
-      hostPath: 
-        path: /dev/fuse      
+      hostPath:
+        path: /dev/fuse
   workspaces:
     - name: source
     - description: An optional workspace that allows providing a .docker/config.json file for Podman to access the container registry. The file should be placed at the root of the Workspace with name config.json or .dockerconfigjson.

@@ -10,7 +10,7 @@ spec:
     - default: main
       description: URL of the repository where Containerfile is stored
       name: GIT_REPOSITORY_BRANCH
-      type: string    
+      type: string
     - default: ./Containerfile
       description: 'Containerfile path, relative'
       name: CONTAINERFILE_PATH
@@ -18,13 +18,13 @@ spec:
     - default: .
       description: 'Podman Build Context'
       name: BUILD_CONTEXT
-      type: string             
+      type: string
     - description: 'Name of the image to create, i.e. quay.io/kubealex/rhel-bootc-demo'
       name: IMAGE_NAME
       type: string
     - description: 'Tags, separated by a space, to apply to the image'
       name: IMAGE_TAGS
-      type: string      
+      type: string
   tasks:
     - name: git-clone
       params:
@@ -59,14 +59,8 @@ spec:
         - name: SPARSE_CHECKOUT_DIRECTORIES
           value: ''
       taskRef:
-        resolver: cluster
-        params:
-          - name: kind
-            value: task
-          - name: name
-            value: git-clone
-          - name: namespace
-            value: openshift-pipelines
+        kind: Task
+        name: git-clone
       workspaces:
         - name: output
           workspace: repo-folder
