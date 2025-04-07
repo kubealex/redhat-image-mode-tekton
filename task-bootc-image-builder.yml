@@ -106,8 +106,8 @@ spec:
           fi
         fi
 
-        if [[ ! -z "$(params.CONFIG_TOML_CONTENT)" ]]; then
-          echo "$(params.CONFIG_TOML_CONTENT)" > config.toml
+        if [[ ! -z '$(params.CONFIG_TOML_CONTENT)' ]]; then
+          echo '$(params.CONFIG_TOML_CONTENT)' > config.toml
           BUILD_COMMAND="--config /config.toml $BUILD_COMMAND"
           PODMAN_COMMAND="$PODMAN_COMMAND -v ./config.toml:/config.toml:ro"
         fi
