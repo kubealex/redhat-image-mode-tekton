@@ -1,0 +1,66 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kubernetes-actions
+spec:
+  description: >-
+    This task is the generic kubectl CLI task which can be used
+    to run all kinds of k8s commands
+  workspaces:
+    - name: manifest-dir
+      optional: true
+    - name: kubeconfig-dir
+      optional: true
+  results:
+    - name: output-result
+      description: some result can be emitted if someone wants to.
+  params:
+    - name: script
+      description: The Kubernetes CLI script to run
+      type: string
+      default: "kubectl $@"
+    - name: args
+      description: The Kubernetes CLI arguments to run
+      type: array
+      default:
+        - "help"
+    - name: image
+      default: gcr.io/cloud-builders/kubectl:latest
+      description: Kubectl wrapper image
+    - name: SOURCE_IMAGE_NAME
+      default: ""
+    - name: SOURCE_IMAGE_TAG
+      default: ""
+    - default: ""
+      name: VM_NAME
+      type: string
+      description: 'VM Name'
+    - default: "2"
+      name: VM_CPU
+      type: string
+      description: 'VM CPU Count'
+    - default: 2Gi
+      name: VM_MEMORY
+      type: string
+      description: 'VM Memory'
+    - default: 20Gi
+      name: VM_DISK_SIZE
+      type: string
+      description: 'VM Disk Size'
+  steps:
+    - name: kubectl
+      image: $(params.image)
+      script: |
+        #!/usr/bin/env bash
+
+        [[ "$(workspaces.manifest-dir.bound)" == "true" ]] && \
+        cd $(workspaces.manifest-dir.path)
+
+        [[ "$(workspaces.kubeconfig-dir.bound)" == "true" ]] && \
+        [[ -f $(workspaces.kubeconfig-dir.path)/kubeconfig ]] && \
+        export KUBECONFIG=$(workspaces.kubeconfig-dir.path)/kubeconfig
+
+        $(params.script)
+
+      args:
+        - "$(params.args)"

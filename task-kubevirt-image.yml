@@ -1,0 +1,26 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: kubevirt-containerfile
+spec:
+  description: |-
+    Task to prepare the image for Kubevirt
+  steps:
+    - image: quay.io/lib/bash
+      name: create-containerfile
+      script: |
+        #!/usr/bin/env bash
+        set -xe
+        cat << EOF > Containerfile
+        FROM scratch
+        ADD --chown=107:107 ./output/qcow2/disk.qcow2 /disk/
+        EOF
+      securityContext:
+        capabilities:
+          add:
+            - SETFCAP
+        privileged: true
+      workingDir: $(workspaces.main-workspace.path)
+  workspaces:
+    - name: main-workspace
+
