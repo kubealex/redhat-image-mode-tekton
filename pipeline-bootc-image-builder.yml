@@ -40,6 +40,10 @@ spec:
       description: AWS S3 Region
       name: AWS_S3_REGION
       type: string
+    - default: 'false'
+      description: Generate QCOW2 Container image for OCPVirt ContainerDisk
+      name: OCPVIRT_IMAGE_BUILD
+      type: string
 
   tasks:
     - name: bootc-image-builder
@@ -62,19 +66,57 @@ spec:
           value: $(params.AWS_S3_BUCKET)
         - name: AWS_S3_REGION
           value: $(params.AWS_S3_REGION)
+        - name: OCPVIRT_IMAGE_BUILD
+          value: $(params.OCPVIRT_IMAGE_BUILD)
 
       taskRef:
         kind: Task
         name: bootc-image-builder
       workspaces:
-        - name: source
-          workspace: main
+        - name: main-workspace
+          workspace: main-workspace
         - name: dockerconfig
           workspace: registry-creds
         - name: awscredentials
           workspace: aws-creds
+
+    - name: kubevirt-containerfile-create
+      when:
+        - input: "$(params.OCPVIRT_IMAGE_BUILD)"
+          operator: in
+          values: ["true"]
+      runAfter:
+        - bootc-image-builder
+      taskRef:
+        kind: Task
+        name: kubevirt-containerfile
+      workspaces:
+        - name: main-workspace
+          workspace: main-workspace
+
+    - name: kubevirt-image-build
+      when:
+        - input: "$(params.OCPVIRT_IMAGE_BUILD)"
+          operator: in
+          values: ["true"]
+      params:
+        - name: IMAGE
+          value: $(params.SOURCE_IMAGE_NAME)
+        - name: IMAGE_TAGS
+          value: kubevirt-qcow2
+      runAfter:
+        - kubevirt-containerfile-create
+      taskRef:
+        kind: Task
+        name: rhel-image-mode-build
+      workspaces:
+        - name: main-workspace
+          workspace: main-workspace
+        - name: dockerconfig
+          workspace: registry-creds
+
   workspaces:
-    - name: main
+    - name: main-workspace
     - name: registry-creds
     - name: aws-creds
       optional: true
