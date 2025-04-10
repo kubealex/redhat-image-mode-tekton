@@ -1,0 +1,93 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: kubevirt-image-deploy
+spec:
+  params:
+    - default: quay.io/kubealex/rhel-bootc-demo
+      name: SOURCE_IMAGE_NAME
+      type: string
+      description: 'Image to convert - i.e. quay.io/kubealex/centos-bootc-demo'
+    - default: kubevirt-qcow2
+      name: SOURCE_IMAGE_TAG
+      type: string
+      description: 'Image tag'
+    - default: rhel-bootc-vm
+      name: VM_NAME
+      type: string
+      description: 'VM Name'
+    - default: 2
+      name: VM_CPU
+      type: string
+      description: 'VM CPU Count'
+    - default: 2Gi
+      name: VM_MEMORY
+      type: string
+      description: 'VM Memory'
+    - default: 20Gi
+      name: VM_DISK_SIZE
+      type: string
+      description: 'VM Disk Size'
+  tasks:
+    - name: kubernetes-actions
+      params:
+        - name: SOURCE_IMAGE
+          value: $(params.SOURCE_IMAGE_NAME)
+        - name: SOURCE_IMAGE_TAG
+          value: $(params.SOURCE_IMAGE_TAG)
+        - name: script
+          value: |
+            cat <<EOF | kubectl apply -f -
+            ---
+            apiVersion: kubevirt.io/v1
+            kind: VirtualMachine
+            metadata:
+              labels:
+                kubevirt.io/vm: vm-bootc-kubevirt
+              name: $(params.VM_NAME)
+            spec:
+              dataVolumeTemplates:
+              - metadata:
+                  creationTimestamp: null
+                  name: $(params.VM_NAME)-dv
+                spec:
+                  pvc:
+                    accessModes:
+                    - ReadWriteMany
+                    resources:
+                      requests:
+                        storage: 20Gi
+                    storageClassName: ocs-storagecluster-cephfs
+                  source:
+                    registry:
+                      url: docker://$(params.SOURCE_IMAGE_NAME):$(params.SOURCE_IMAGE_TAG)
+              running: true
+              template:
+                metadata:
+                  labels:
+                    kubevirt.io/vm: $(params.VM_NAME)-kubevirt
+                spec:
+                  domain:
+                    devices:
+                      disks:
+                      - disk:
+                          bus: virtio
+                        name: datavolumedisk1
+                    resources:
+                      requests:
+                        memory: $(params.VM_MEMORY)
+                    firmware:
+                      bootloader:
+                        efi:
+                          secureBoot: false
+                    cpu:
+                      cores: $(params.VM_CPU)
+                  terminationGracePeriodSeconds: 0
+                  volumes:
+                  - dataVolume:
+                      name: $(params.VM_NAME)-dv
+                    name: datavolumedisk1
+            EOF
+      taskRef:
+        kind: Task
+        name: kubernetes-actions

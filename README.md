@@ -15,6 +15,7 @@ One solution could be to add the *privileged SCC* to the **pipeline** service ac
 oc adm policy add-scc-to-user privileged -z pipeline -n <YOUR_PROJECT>
 ```
 
+For the VM Deployment
 ### Container registry credentials
 
 All the tasks require credentials to fetch container images from **registry.redhat.io** and to fetch/push images to a destination container registry, for instance **quay.io**.
@@ -83,19 +84,33 @@ oc apply -f task-bootc-image-builder.yml -f task-image-mode-build.yml -n <YOUR_P
 | `PUSH_EXTRA_ARGS`  | Extra parameters passed for the push command                      | No       | `""` (empty) |
 | `SKIP_PUSH`     | Skip pushing the built image                                        | No       | `false` |
 
+### Parameters for task-kubevirt-vm.yml
+
+| Parameter         | Description                                                          | Required | Default Value |
+|------------------|----------------------------------------------------------------------|----------|--------------|
+| `SOURCE_IMAGE_NAME`        | Reference of the source RHEL bootc image         | Yes      | `N/A` |
+| `SOURCE_IMAGE_TAG`    | Reference of the image tags Podman will produce | Yes      | `N/A` |
+| `VM_NAME` | Name for the VM                               | Yes       | `N/A` |
+| `VM_CPU`    | CPU Count for the VM                                   | Yes       | `2` |
+| `VM_MEMORY`       | Memory count in Mi/Gi for the VM                          | Yes       | `2Gi` |
+| `VM_DISK_SIZE`       | Disk Size in Mi/Gi for the VM                          | Yes       | `20Gi` |
+
+
+
 ## Configuring the pipelines
 
 The repo comes with two pipeline:
 
 - pipeline-image-build.yml -> Combines a Git clone task to fetch a Containerfile from a repository with the *task-image-mode-build* task we defined before
 - pipeline-bootc-image-builder.yml -> Uses **bootc-image-builder** to convert a RHEL Bootc container image to a preferred format.
+- pipeline-deploy-vm.yml -> It generates a ContainerDisk for Kubevirt/OCP Virtualization with a QCOW2 file and spins a VM.
 
 Each pipeline has its own workspaces to manage Registry Credentials,
 
 Apply the tasks to the cluster:
 
 ```bash
-oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -n <YOUR_PROJECT>
+oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -f pipeline-deploy-vm.yml -n <YOUR_PROJECT>
 ```
 
 ### Details for pipeline-image-build.yml
@@ -115,9 +130,10 @@ oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -n <YOU
 
 | Workspace         | Description                                                                                      | Required |
 |------------------|--------------------------------------------------------------------------------------------------|----------|
-| `repo-folder`    | Stores the cloned Git repository containing the Containerfile and context for building the image | Yes      |
-| `podman-auth`    | Used to provide authentication credentials for Podman to access container registries             | No       |
+| `main-workspace`    | Stores the cloned Git repository containing the Containerfile and context for building the image | Yes      |
+| `registry-creds`    | Used to provide authentication credentials for Podman to access container registries             | No       |
 | `rhel-entitlements` | Stores Red Hat entitlement keys, allowing the build process to access subscription-based content | No       |
+
 
 ### Details for pipeline-bootc-image-builder.yml
 
@@ -134,12 +150,31 @@ oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -n <YOU
 | `AWS_AMI_NAME`           | AWS AMI Name (Only needed for AMI output)                                                          | No       | (empty)                               |
 | `AWS_S3_BUCKET`          | AWS S3 Bucket (Only needed for AMI output)                                                          | No       | (empty)                               |
 | `AWS_S3_REGION`          | AWS S3 Region (Only needed for AMI output)                                                          | No       | (empty)                               |
-
+| `KUBEVIRT_IMAGE_BUILD`          | When QCOW2 format is chosen, option to create a ContainerDisk for the Image                                                  | No       | false                              |
 
 **Workspaces**
 
 | Workspace        | Description                                                                        | Required |
 |-----------------|------------------------------------------------------------------------------------|----------|
-| `main`          | Main workspace where the source files are stored                                  | Yes      |
+| `main-workspace`          | Main workspace where the source files are stored                                  | Yes      |
 | `registry-creds` | Used to provide authentication credentials for accessing container registries     | No       |
 | `aws-creds`     | Stores AWS credentials for pushing images to AWS S3 or registering AMIs          | No       |
+
+### Details for pipeline-deploy-vm.yml
+
+
+**Parameters**
+
+| Name                     | Description                                                               | Required | Default Value                          |
+|--------------------------|---------------------------------------------------------------------------|----------|----------------------------------------|
+| `SOURCE_IMAGE_NAME`      | Image to use for the VM - e.g., `quay.io/kubealex/rhel-bootc-demo`             | No       | `quay.io/kubealex/rhel-bootc-demo`   |
+| `SOURCE_IMAGE_TAG`       | Image tag                                                               | No       | `kubevirt-qcow2`                              |
+| `VM_NAME` | Name for the VM                               | Yes       | `N/A` |
+| `VM_CPU`    | CPU Count for the VM                                   | Yes       | `2` |
+| `VM_MEMORY`       | Memory count in Mi/Gi for the VM                          | Yes       | `2Gi` |
+| `VM_DISK_SIZE`       | Disk Size in Mi/Gi for the VM                          | Yes       | `20Gi` |
+
+
+**Workspaces**
+
+N/A
