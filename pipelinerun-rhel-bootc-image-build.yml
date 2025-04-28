@@ -1,0 +1,38 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: rhel-bootc-image-build-
+spec:
+  params:
+  # Git repository containing the source to build
+  - name: GIT_REPOSITORY
+    value: <GIT_REPOSITORY>
+  - name: GIT_REPOSITORY_BRANCH
+    value: main
+  - name: CONTAINERFILE_PATH
+    value: ./Containerfile
+  - name: BUILD_CONTEXT
+    value: .
+  # Location of image the produced bootc image should be published
+  - name: IMAGE_NAME
+    value: <IMAGE_NAME>
+  - name: IMAGE_TAGS
+    value: latest
+  pipelineRef:
+    name: rhel-bootc-image-build
+  workspaces:
+  - name: main-workspace
+    volumeClaimTemplate:
+      metadata:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 20Gi
+  - name: registry-creds
+    secret:
+      secretName: registry-credentials
+  - name: rhel-entitlements
+    secret:
+      secretName: etc-pki-entitlement

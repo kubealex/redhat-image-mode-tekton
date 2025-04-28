@@ -6,26 +6,47 @@ It comes with a configuration playbook and vars to set-up everything in Red Hat 
 
 ## Requirements
 
+To make use of the tooling provided in this repository, a Kubernetes namespace must be targeted as a destination. Specify the namespace by setting an environment variable `NAMESPACE` as shown below:
+
+```bash
+NAMESPACE=<namespace>
+```
+
+This variable will be used in subsequent commands
+
 ### ServiceAccount privileges for the tasks
 For the pipelines to properly work, the *podman* tasks (image building and bootc-image-builder) require **privileged** execution access.
 
 One solution could be to add the *privileged SCC* to the **pipeline** service account:
 
 ```bash
-oc adm policy add-scc-to-user privileged -z pipeline -n <YOUR_PROJECT>
+oc adm policy add-scc-to-user privileged -z pipeline -n $NAMESPACE
 ```
 
 For the VM Deployment
 ### Container registry credentials
 
 All the tasks require credentials to fetch container images from **registry.redhat.io** and to fetch/push images to a destination container registry, for instance **quay.io**.
-You can store the credentials in a secret that can be then associated to the workspaces in the pipelines:
+You can store the credentials in a secret that can be then associated to the workspaces in the pipelines. For registries that require authentication, specify the credentials using the `podman login` command to create a new _authfile_ in the current directory:
 
 ```bash
-podman login registryA
-podman login registryB
-oc create secret generic registry-credentials --from-file=.dockerconfigjson=$XDG_RUNTIME_DIR/containers/auth.json --type=kubernetes.io/dockerconfigjson -n <YOUR_PROJECT>
+podman login <registry> --authfile=auth.json
 ```
+
+Repeat this command until all source and target registries have been specified
+
+Create a Secret containing the credentials:
+
+```bash
+oc create secret generic registry-credentials --from-file=.dockerconfigjson=auth.json --type=kubernetes.io/dockerconfigjson -n $NAMESPACE
+```
+
+Remove the authfile is desired:
+
+```bash
+rm -f auth.json
+```
+
 
 ### RHEL Entitlements for RHEL Image mode builds
 
@@ -36,10 +57,10 @@ Entitlements can be fetched directly from the **openshift-config-managed** proje
 oc get secret etc-pki-entitlement -n openshift-config-managed -o json | \
   jq 'del(.metadata.resourceVersion)' | jq 'del(.metadata.creationTimestamp)' | \
   jq 'del(.metadata.uid)' | jq 'del(.metadata.namespace)' | \
-  oc -n <YOUR_PROJECT> create -f -
+  oc -n $NAMESPACE create -f -
 ```
 
-It will create a secret called **etc-pki-entitlement** in YOUR_PROJECT that can be then bound to the pipeline.
+It will create a secret called **etc-pki-entitlement** in the `$NAMESPACE` that can be then bound to the pipeline.
 
 ## Configuring the tasks
 
@@ -51,7 +72,7 @@ The repo comes with two different tasks:
 Apply the tasks to the cluster:
 
 ```bash
-oc apply -f task-bootc-image-builder.yml -f task-image-mode-build.yml -n <YOUR_PROJECT>
+oc apply -f task-bootc-image-builder.yml -f task-image-mode-build.yml -f task-git-clone.yml -n $NAMESPACE
 ```
 
 ### Parameters for task-bootc-image-builder.yml
@@ -110,7 +131,7 @@ Each pipeline has its own workspaces to manage Registry Credentials,
 Apply the tasks to the cluster:
 
 ```bash
-oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -f pipeline-deploy-vm.yml -n <YOUR_PROJECT>
+oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -f pipeline-deploy-vm.yml -n $NAMESPACE
 ```
 
 ### Details for pipeline-image-build.yml
@@ -178,3 +199,19 @@ oc apply -f pipeline-image-build.yml -f pipeline-bootc-image-builder.yml -f pipe
 **Workspaces**
 
 N/A
+
+## Running a Pipeline
+
+The execution of a _Pipeline_ is achieved using a `PipelineRun` resource.
+
+The following examples are available as starting points to initiate the processes described in a pipeline:
+
+* [rhel-bootc-image-build](pipelinerun-rhel-bootc-image-build.yml)
+
+Be sure to review the contents of both the `PipelineRun` and their underlying referenced `Pipeline` resources for any parameters that need to be customized for the particular environment.
+
+Pipeline can be triggered by creating a new `PipelineRun` using one of customized examples:
+
+```bash
+oc create -f <file>
+```
