@@ -1,14 +1,14 @@
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
-  name: kubevirt-image-deploy
+  name: ocpvirt-image-deploy
 spec:
   params:
     - default: quay.io/kubealex/rhel-bootc-demo
       name: QCOW2_IMAGE_NAME
       type: string
       description: 'ContainerDisk Image name'
-    - default: kubevirt-qcow2
+    - default: ocpvirt-qcow2
       name: QCOW2_IMAGE_TAG
       type: string
       description: 'ContainerDisk Image tag'
@@ -29,7 +29,7 @@ spec:
       type: string
       description: 'VM Disk Size'
   tasks:
-    - name: kubernetes-actions
+    - name: kubevirt-vm-deploy
       params:
         - name: QCOW2_IMAGE_NAME
           value: $(params.QCOW2_IMAGE_NAME)
@@ -39,11 +39,11 @@ spec:
           value: |
             cat <<EOF | kubectl apply -f -
             ---
-            apiVersion: kubevirt.io/v1
+            apiVersion: ocpvirt.io/v1
             kind: VirtualMachine
             metadata:
               labels:
-                kubevirt.io/vm: vm-bootc-kubevirt
+                ocpvirt.io/vm: vm-bootc-ocpvirt
               name: $(params.VM_NAME)
             spec:
               dataVolumeTemplates:
@@ -65,7 +65,7 @@ spec:
               template:
                 metadata:
                   labels:
-                    kubevirt.io/vm: $(params.VM_NAME)-kubevirt
+                    ocpvirt.io/vm: $(params.VM_NAME)-ocpvirt
                 spec:
                   domain:
                     devices:
@@ -90,4 +90,4 @@ spec:
             EOF
       taskRef:
         kind: Task
-        name: kubernetes-actions
+        name: ocpvirt-vm-deploy

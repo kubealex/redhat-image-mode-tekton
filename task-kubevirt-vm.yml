@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Task
 metadata:
-  name: kubernetes-actions
+  name: kubevirt-vm-deploy
 spec:
   description: >-
     This task is the generic kubectl CLI task which can be used

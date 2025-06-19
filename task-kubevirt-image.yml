@@ -23,4 +23,3 @@ spec:
       workingDir: $(workspaces.main-workspace.path)
   workspaces:
     - name: main-workspace
-
