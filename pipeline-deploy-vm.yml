@@ -5,13 +5,13 @@ metadata:
 spec:
   params:
     - default: quay.io/kubealex/rhel-bootc-demo
-      name: SOURCE_IMAGE_NAME
+      name: QCOW2_IMAGE_NAME
       type: string
-      description: 'Image to convert - i.e. quay.io/kubealex/centos-bootc-demo'
+      description: 'ContainerDisk Image name'
     - default: kubevirt-qcow2
-      name: SOURCE_IMAGE_TAG
+      name: QCOW2_IMAGE_TAG
       type: string
-      description: 'Image tag'
+      description: 'ContainerDisk Image tag'
     - default: rhel-bootc-vm
       name: VM_NAME
       type: string
@@ -31,10 +31,10 @@ spec:
   tasks:
     - name: kubernetes-actions
       params:
-        - name: SOURCE_IMAGE
-          value: $(params.SOURCE_IMAGE_NAME)
-        - name: SOURCE_IMAGE_TAG
-          value: $(params.SOURCE_IMAGE_TAG)
+        - name: QCOW2_IMAGE_NAME
+          value: $(params.QCOW2_IMAGE_NAME)
+        - name: QCOW2_IMAGE_TAG
+          value: $(params.QCOW2_IMAGE_TAG)
         - name: script
           value: |
             cat <<EOF | kubectl apply -f -
@@ -60,7 +60,7 @@ spec:
                     storageClassName: ocs-storagecluster-cephfs
                   source:
                     registry:
-                      url: docker://$(params.SOURCE_IMAGE_NAME):$(params.SOURCE_IMAGE_TAG)
+                      url: docker://$(params.QCOW2_IMAGE_NAME):$(params.QCOW2_IMAGE_TAG)
               running: true
               template:
                 metadata:
